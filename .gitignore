@@ -1,0 +1,7 @@
+**/out
+*.vsix
+server/**
+node_modules/
+.gradle/
+.vscode-test/
+.idea/
