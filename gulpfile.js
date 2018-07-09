@@ -2,7 +2,7 @@
 const gulp = require('gulp');
 const gulp_tslint = require('gulp-tslint');
 const cp = require('child_process');
-const server_dir = '../xml-ls';
+const server_dir = '../xml-languageserver';
 
 gulp.task('tslint', () => {
     return gulp.src(['**/*.ts', '!**/*.d.ts', '!node_modules/**'])
@@ -12,8 +12,8 @@ gulp.task('tslint', () => {
 
 gulp.task('build_server', ()=>
 {
-	cp.execSync(gradlew()+ ' shadowJar', {cwd:server_dir, stdio:[0,1,2]} );
-  gulp.src(server_dir +'/build/libs/xml-ls-1.0-SNAPSHOT-all.jar')
+	cp.execSync("mvn clean verify", {cwd:server_dir, stdio:[0,1,2]} );
+  gulp.src(server_dir +'/org.eclipse.lsp4xml/target/org.eclipse.lsp4xml-all.jar')
 		.pipe(gulp.dest('./server'))
 });
 
