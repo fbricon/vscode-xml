@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^2.2.32",
-    "@types/node": "^6.0.40",
+    "@types/node": "^6.0.114",
     "gulp": "^3.9.1",
     "gulp-copy": "^1.0.1",
     "gulp-tslint": "^8.1.2",
