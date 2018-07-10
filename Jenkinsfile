@@ -40,7 +40,7 @@ node('rhel7'){
 
 	stage "Package vscode-xml"
 	def packageJson = readJSON file: 'package.json'
-	sh "vsce package -o java-${packageJson.version}-${env.BUILD_NUMBER}.vsix"
+	sh "vsce package -o vscode-xml-${packageJson.version}-${env.BUILD_NUMBER}.vsix"
 
 	//stage 'Test vscode-xml for staging'
 	//wrap([$class: 'Xvnc']) {
