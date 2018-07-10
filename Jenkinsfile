@@ -15,7 +15,7 @@ def buildVscodeExtension(){
 node('rhel7'){
 	stage 'Build JDT LS'
 	git url: 'https://github.com/angelozerr/lsp4xml.git'
-	sh "./mvnw clean verify -B -U -fae -e"
+	sh "./mvnw clean verify -B -U -e"
 
 	def files = findFiles(glob: '**/org.eclipse.lsp4xml/target/org.eclipse.lsp4xml-all.jar')
 	stash name: 'server_distro', includes :files[0].path
@@ -24,7 +24,7 @@ node('rhel7'){
 node('rhel7'){
 	stage 'Checkout vscode-xml code'
 	deleteDir()
-	git url: 'https://github.com/redhat-developer/vscode-xml.git'
+	git url: 'https://github.com/NikolasKomonen/vscode-xml.git'
 
 	stage 'install vscode-xml build requirements'
 	installBuildRequirements()
@@ -34,7 +34,7 @@ node('rhel7'){
 	unstash 'server_distro'
 	def files = findFiles(glob: '**/org.eclipse.lsp4xml/target/org.eclipse.lsp4xml-all.jar')
 	sh "mkdir ./server"
-	sh "tar -xvzf ${files[0].path} -C ./server"
+	sh "mv ${files[0].path} ./server"
 
 	stage "Package vscode-xml"
 	def packageJson = readJSON file: 'package.json'
@@ -47,7 +47,7 @@ node('rhel7'){
 	
 	stage 'Upload vscode-java to staging'
 	def vsix = findFiles(glob: '**.vsix')
-	sh "rsync -Pzrlt --rsh=ssh --protocol=28 ${vsix[0].path} ${UPLOAD_LOCATION}/jdt.ls/staging"
+	sh "rsync -Pzrlt --rsh=ssh --protocol=28 ${vsix[0].path} ${UPLOAD_LOCATION}/vscode-xml/staging"
 	stash name:'vsix', includes:files[0].path
 }
 
@@ -59,15 +59,15 @@ node('rhel7'){
 
 		stage "Publish to Marketplace"
 		unstash 'vsix'
-		withCredentials([[$class: 'StringBinding', credentialsId: 'vscode_java_marketplace', variable: 'TOKEN']]) {
+		withCredentials([[$class: 'StringBinding', credentialsId: 'vscode_xml_marketplace', variable: 'TOKEN']]) {
 			def vsix = findFiles(glob: '**.vsix')
 			sh 'vsce publish -p ${TOKEN} --packagePath' + " ${vsix[0].path}"
 		}
 		archive includes:"**.vsix"
 
-		stage "Publish to http://download.jboss.org/jbosstools/static/jdt.ls/stable/"
+		stage "Publish to http://download.jboss.org/jbosstools/static/vscode-xml/stable/"
 		// copy this stable build to Akamai-mirrored /static/ URL, so staging can be cleaned out more easily
 		def vsix = findFiles(glob: '**.vsix')
-		sh "rsync -Pzrlt --rsh=ssh --protocol=28 ${vsix[0].path} ${UPLOAD_LOCATION}/static/jdt.ls/stable/"
+		sh "rsync -Pzrlt --rsh=ssh --protocol=28 ${vsix[0].path} ${UPLOAD_LOCATION}/static/vscode-xml/stable/"
 	}// if publishToMarketPlace
 }
