@@ -24,7 +24,9 @@ node('rhel7'){
 node('rhel7'){
 	stage 'Checkout vscode-xml code'
 	deleteDir()
-	git url: 'https://github.com/NikolasKomonen/vscode-xml.git'
+	def gitUrl = ${GIT_REPO}
+
+	git url: gitUrl?:'https://github.com/gorkem/vscode-xml.git'
 
 	stage 'install vscode-xml build requirements'
 	installBuildRequirements()
