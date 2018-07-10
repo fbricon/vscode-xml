@@ -24,7 +24,7 @@ node('rhel7'){
 node('rhel7'){
 	stage 'Checkout vscode-xml code'
 	deleteDir()
-	def gitUrl = ${GIT_REPO}
+	def gitUrl = "${GIT_REPO}"
 
 	git url: gitUrl?:'https://github.com/gorkem/vscode-xml.git'
 
