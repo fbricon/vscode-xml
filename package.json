@@ -41,16 +41,12 @@
     "path-exists": "^3.0.0",
     "expand-home-dir": "^0.0.3",
     "glob": "^7.1.1"
-  }
-  ,"contributes": {
-    
+  },
+  "contributes": {
     "configuration": {
       "type": "object",
       "title": "XML configuration",
       "properties": {
-        
-        
-        
         "xml.trace.server": {
           "type": "string",
           "enum": [
@@ -62,7 +58,6 @@
           "description": "Traces the communication between VS Code and the XML language server.",
           "scope": "window"
         }
-        
       }
     }
   }
