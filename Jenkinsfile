@@ -40,10 +40,10 @@ node('rhel7'){
 	def packageJson = readJSON file: 'package.json'
 	sh "vsce package -o java-${packageJson.version}-${env.BUILD_NUMBER}.vsix"
 
-	stage 'Test vscode-xml for staging'
-	wrap([$class: 'Xvnc']) {
-		sh "npm test --silent"
-	}
+	//stage 'Test vscode-xml for staging'
+	//wrap([$class: 'Xvnc']) {
+	//	sh "npm test --silent"
+	//}
 	
 	stage 'Upload vscode-xml to staging'
 	def vsix = findFiles(glob: '**.vsix')
