@@ -13,7 +13,7 @@ def buildVscodeExtension(){
 }
 
 node('rhel7'){
-	stage 'Build JDT LS'
+	stage 'Build XML LS'
 	git url: 'https://github.com/angelozerr/lsp4xml.git'
 	sh "./mvnw clean verify -B -U -e"
 
@@ -45,7 +45,7 @@ node('rhel7'){
 		sh "npm test --silent"
 	}
 	
-	stage 'Upload vscode-java to staging'
+	stage 'Upload vscode-xml to staging'
 	def vsix = findFiles(glob: '**.vsix')
 	sh "rsync -Pzrlt --rsh=ssh --protocol=28 ${vsix[0].path} ${UPLOAD_LOCATION}/vscode-xml/staging"
 	stash name:'vsix', includes:files[0].path
