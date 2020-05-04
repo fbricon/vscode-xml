@@ -1,0 +1,150 @@
+pipeline {
+  agent none
+  parameters {
+    // This parameter only affects the GraalVM version used under macOS and Windows
+    // In order to change the version under
+    string (name: 'GRAALVM_VERSION', defaultValue: '20.3.0', description: 'The version of GraalVM to use. This parameter only affects the Windows and macOS builds. In order to update GraalVM for rhel8, you need to modify the yaml scripts that are used to generate the rhel8 vm image.')
+    string (name: 'UPLOAD_LOCATION', description: 'Where to upload the binaries and SHA256 hashes')
+    booleanParam (name: 'stable', defaultValue: false, description: 'Whether this build should be considered a stable build and be uploaded to the stable builds location')
+  }
+  stages {
+    stage("native-image") {
+      parallel {
+        // Assumes GraalVM is set up on the rhel8 agent, and the environment variable "GRAALVM_PATH" points to its location
+        stage("Linux native-image") {
+          agent {
+            label "rhel8"
+          }
+          steps {
+            sh "rm -f lemminx-linux"
+            sh "cd lemminx && git pull && cd .. || git clone https://github.com/eclipse/lemminx.git"
+            sh "cd lemminx && JAVA_HOME=\$GRAALVM_PATH ./mvnw clean package -Dnative -DskipTests && cd .."
+            sh "cp lemminx/org.eclipse.lemminx/target/lemminx-linux* lemminx-linux"
+            stash name: 'lemminx-linux', includes: 'lemminx-linux'
+          }
+        }
+        stage("Windows native-image") {
+          agent {
+            label "win10"
+          }
+          steps {
+            powershell "if (Test-Path lemminx-win32.exe) { Remove-Item lemminx-win32.exe }"
+            powershell """
+              [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+              if (Test-Path lemminx) {
+                cd lemminx
+                git pull
+                cd ..
+              } else {
+                git clone https://github.com/eclipse/lemminx.git
+              }
+            """
+            powershell """
+              [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+              if (-not (Test-Path graalvm-windows-${params.GRAALVM_VERSION}.zip)) {
+                Invoke-WebRequest https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-${params.GRAALVM_VERSION}/graalvm-ce-java11-windows-amd64-${params.GRAALVM_VERSION}.zip -OutFile graalvm-windows-${params.GRAALVM_VERSION}.zip
+                Expand-Archive graalvm-windows-${params.GRAALVM_VERSION}.zip
+                .\\graalvm-windows-${params.GRAALVM_VERSION}\\graalvm-ce-java11-${params.GRAALVM_VERSION}\\bin\\gu install native-image
+              }
+            """
+            powershell """
+              [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+              Push-Location
+              Install-Module VSSetup -Scope CurrentUser
+              \$vs = Get-VSSetupInstance
+              if (\$vs -is [array]) {
+                \$vs_loc = (\$vs[0]).InstallationPath
+                \$vs_id = (\$vs[0]).InstanceId
+              } else {
+                \$vs_loc = (\$vs[0]).InstallationPath
+                \$vs_id = (\$vs[0]).InstanceId
+              }
+              Import-Module "\$vs_loc\\Common7\\Tools\\Microsoft.VisualStudio.DevShell.dll"
+              Enter-VsDevShell "\$vs_id" -DevCmdArguments "/arch=amd64"
+              Pop-Location
+              \$Env:JAVA_HOME = \"\$(Get-Location)\\graalvm-windows-${params.GRAALVM_VERSION}\\graalvm-ce-java11-${params.GRAALVM_VERSION}\"
+              cd lemminx
+              .\\mvnw.cmd clean package -Dnative -DskipTests
+              cd ..
+            """
+            powershell "mv lemminx\\org.eclipse.lemminx\\target\\lemminx-windows*.exe lemminx-win32.exe"
+
+            stash name: 'lemminx-win32.exe', includes: 'lemminx-win32.exe'
+          }
+        }
+        stage("macOS native-image") {
+          agent {
+            label "mac"
+          }
+          steps {
+            sh "rm -f lemminx-osx-x86_64.zip lemminx-osx-x86_64.sha256"
+            sh "cd lemminx && git pull && cd .. || git clone https://github.com/eclipse/lemminx.git"
+            sh """
+              if [ ! -f graalvm-darwin-${params.GRAALVM_VERSION}.tar.gz ]; then
+                curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-${params.GRAALVM_VERSION}/graalvm-ce-java8-darwin-amd64-${params.GRAALVM_VERSION}.tar.gz -L --output graalvm-darwin-${params.GRAALVM_VERSION}.tar.gz
+                tar -xzf graalvm-darwin-${params.GRAALVM_VERSION}.tar.gz
+                ./graalvm-ce-java8-${params.GRAALVM_VERSION}/Contents/Home/bin/gu install native-image
+              fi
+            """
+            sh "cd lemminx && JAVA_HOME=../graalvm-ce-java8-${params.GRAALVM_VERSION}/Contents/Home ./mvnw clean package -Dnative -DskipTests && cd .."
+            sh "cp lemminx/org.eclipse.lemminx/target/lemminx-osx-x86_64* lemminx-osx-x86_64"
+
+            stash name: 'lemminx-osx-x86_64', includes: 'lemminx-osx-x86_64'
+          }
+        }
+      }
+    }
+    stage ("UPX and upload") {
+      agent {
+        label "rhel8"
+      }
+      steps {
+        unstash name: 'lemminx-linux'
+        unstash name: 'lemminx-win32.exe'
+        unstash name: 'lemminx-osx-x86_64'
+
+        // Run UPX to reduce binary size
+        sh "upx lemminx-linux"
+        sh "upx lemminx-win32.exe"
+        sh "upx lemminx-osx-xs86_64"
+
+        // get the sha256 hash of the files
+        sh "sha256sum lemminx-linux > lemminx-linux.sha256"
+        sh "sha256sum lemminx-win32.exe > lemminx-win32.sha256"
+        sh "sha256sum lemminx-osx-x86_64 > lemminx-osx-x86_64.sha256"
+
+        // TODO: "Upload to JBoss Tools"
+        // Move artifacts into a folder name unique to this build
+        script {
+          def packageJson = readJSON file: 'package.json'
+          def vscodeXmlVersion = packageJson?.version
+          def uploadFolderName = 'snapshots'
+          sh "mkdir ${vscodeXmlVersion}-${env.BUILD_NUMBER}"
+          if (stable) {
+            uploadFolderName = 'stable'
+          }
+          sh """
+            cp lemminx-linux \$vscodeversion-${env.BUILD_NUMBER}/lemminx-linux
+            cp lemminx-linux.sha256 \$vscodeversion-${env.BUILD_NUMBER}/lemminx-linux.sha256
+            cp lemminx-win32.exe \$vscodeversion-${env.BUILD_NUMBER}/lemminx-win32.exe
+            cp lemminx-win32.sha256 \$vscodeversion-${env.BUILD_NUMBER}/lemminx-win32.sha256
+            cp lemminx-osx-x86_64 \$vscodeversion-${env.BUILD_NUMBER}/lemminx-osx-x86_64
+            cp lemminx-osx-x86_64.sha256 \$vscodeversion-${env.BUILD_NUMBER}/lemminx-osx-x86_64.sha256
+          """
+          if (!stable){
+            sh """
+              ln  --symbolic \$vscodeversion-${env.BUILD_NUMBER} LATEST
+            """
+          }
+          sh """
+            # Upload the uniquely named folder to JBossTools
+            rsync -Pzrlt --rsh=ssh --protocol=28 \$vscodeversion-${env.BUILD_NUMBER} ${params.UPLOAD_LOCATION}/vscode/${uploadFolderName}/lemminx-binary
+            rsync -Pzrlt --rsh=ssh --protocol=28 LATEST ${params.UPLOAD_LOCATION}/vscode/${uploadFolderName}/lemminx-binary
+            rm -rf \$vscodeversion-${env.BUILD_NUMBER}
+            rm -f LATEST
+          """
+        }
+      }
+    }
+  }
+}

@@ -34,6 +34,22 @@
   -Dhttp.proxyPassword= <password> -Dhttps.proxyHost=<proxy_host> -Dhttps.proxyPort=<proxy_port>
   ```
 
+## Server Binary Mode
+
+By default, if Java is not installed, a binary version of the LemMinX language server will be downloaded and run.
+If you want to use the binary version even if Java is installed, enable the `xml.server.preferBinary` option.
+If something goes wrong with downloading the binary, then vscode-xml will fall back to trying to use the Java server.
+
+Unfortunately, extensions to LemMinX such as lemminx-maven, liquibase-lsp, and lemminx-liberty cannot be used with the binary version of the server.
+vscode-xml will always launch the Java version of the server if extensions are detected and the user has Java installed.
+A warning will be displayed if you launch vscode-xml in binary server mode with extensions installed.
+This warning can be disabled with the `xml.server.silenceExtensionWarning` setting.
+Please see the [extensions page](./Extensions.md) for more information.
+
+You can set a path for a custom binary with the `xml.server.binary.path` setting.
+
+Like with the Java version of the server, you can set memory limits and other command line arguments to the server through the `xml.server.binary.args` setting. These will take into effect after relaunching VSCode. Please refer to [this website for the available options](https://www.graalvm.org/reference-manual/native-image/HostedvsRuntimeOptions/). For example, you can increase the maximum memory that the server can use to 1 GB by adding `-Xmx1g`
+
 ## Server Cache Path
 
   vscode-xml maintains a cache of the schemas (eg: XSD, DTD) that are referenced using an internet URL.
@@ -81,9 +97,9 @@ Please see [XSD file associations](Validation.md#xml-file-association-with-xsd) 
     "catalog2.xml"
   ]
   ```
-  
+
 Please see [XML catalog with XSD](Validation.md#XML-catalog-with-XSD) and [XML catalog with DTD](Validation.md#XML-catalog-with-DTD) for more information.
-  
+
 ## Grammar
 
   Can be accessed through: `xml.problems.noGrammar`
