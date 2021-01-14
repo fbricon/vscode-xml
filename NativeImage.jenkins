@@ -51,7 +51,7 @@ pipeline {
             powershell """
               [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
               Push-Location
-              Install-Module VSSetup -Scope CurrentUser
+              Install-Module VSSetup -Scope CurrentUser -Force
               \$vs = Get-VSSetupInstance
               if (\$vs -is [array]) {
                 \$vs_loc = (\$vs[0]).InstallationPath
