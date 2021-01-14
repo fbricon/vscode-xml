@@ -41,6 +41,7 @@ pipeline {
             """
             powershell """
               [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+              Install-PackageProvider -Name NuGet -RequiredVersion 2.8.5.201 -Force
               if (-not (Test-Path graalvm-windows-${params.GRAALVM_VERSION}.zip)) {
                 Invoke-WebRequest https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-${params.GRAALVM_VERSION}/graalvm-ce-java11-windows-amd64-${params.GRAALVM_VERSION}.zip -OutFile graalvm-windows-${params.GRAALVM_VERSION}.zip
                 Expand-Archive graalvm-windows-${params.GRAALVM_VERSION}.zip
